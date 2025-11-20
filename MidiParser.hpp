@@ -40,19 +40,6 @@ namespace GoldType{
                             switch(event.type()){
                                 case MidiEventType::note_off:
                                 case MidiEventType::note_on:{
-                                    double bar,beat;
-                                    if(bbMap[metaTrack].size()){
-                                        double deltaBeat=(time-bbMap[metaTrack].back().time)
-                                                        *bbMap[metaTrack].back().denominator
-                                                        /4.0/m_head.tpqn();
-                                        beat=bbMap[metaTrack].back().beatNode+deltaBeat;
-                                        bar=bbMap[metaTrack].back().barNode
-                                           +deltaBeat/bbMap[metaTrack].back().numerator;
-                                    }
-                                    else{
-                                        beat=time*1.0/m_head.tpqn();
-                                        bar=beat/4;
-                                    }
                                     noteMap[trackIdx].emplace_back(
                                         time,
                                         MidiTimeMode::tick,
@@ -60,9 +47,7 @@ namespace GoldType{
                                         channel,
                                         event[1],
                                         (event.type()==MidiEventType::note_on)?event[2]:0,
-                                        instruments[channel],
-                                        bar,
-                                        beat
+                                        instruments[channel]
                                     );
                                     break;
                                 }
@@ -180,6 +165,7 @@ namespace GoldType{
                             }
                         }
                     }
+                    set_bb_sorted(noteMap);
                     return MidiErrorType::noError;
                 }
                 MidiErrorType parse_micro(const MidiFile&m_midi){
@@ -203,6 +189,79 @@ namespace GoldType{
                     return true;
                 }
                 
+                size_t _find_bbIdx_between(uint64_t _time,BarBeatList&_bbList,size_t _left,size_t _right){
+                    if(_left>=_right){
+                        return size_t(-1);
+                    }
+                    size_t mid=(_left+_right)/2;
+
+                    if(_bbList[mid].time<=_time){
+                        if(mid!=_bbList.size()-1){
+                            if(_bbList[mid+1].time>_time){
+                                return mid;
+                            }
+                            else{
+                                return _find_bbIdx_between(_time,_bbList,mid+1,_right);
+                            }
+                        }
+                        else{
+                            return mid;
+                        }
+                    }
+                    return _find_bbIdx_between(_time,_bbList,_left,mid);
+                }
+                template<typename _MidiEvent>
+                MidiErrorType set_bb_sorted(MidiEventMap<_MidiEvent>&_map){
+                    for(size_t trackIdx=0;trackIdx<_map.size();++trackIdx){
+                        size_t bbIdx=0;
+                        uint8_t metaTrack=get_metaTrack(trackIdx);
+                        for(size_t eventIdx=0;eventIdx<_map[trackIdx].size();++eventIdx){
+                            _MidiEvent&event=_map[trackIdx][eventIdx];
+                            while(bbMap[metaTrack][bbIdx].time<event.time){
+                                if(bbIdx<bbMap[metaTrack].size()-1){
+                                    if(bbMap[metaTrack][bbIdx+1].time<=event.time){
+                                        ++bbIdx;
+                                        continue;
+                                    }
+                                }
+                                break;
+                            }
+                            if(bbMap[metaTrack][bbIdx].time>event.time){
+                                return MidiErrorType::change_timeMode;
+                            }
+                            double deltaBeat=(event.time-bbMap[metaTrack][bbIdx].time)
+                                            *bbMap[metaTrack][bbIdx].denominator
+                                            /4.0/m_head.tpqn();
+                            double deltaBar=deltaBeat/bbMap[metaTrack][bbIdx].numerator;
+                            event.bar=bbMap[metaTrack][bbIdx].barNode+deltaBar;
+                            event.beat=bbMap[metaTrack][bbIdx].beatNode+deltaBeat;
+                        }
+                    }
+                    return MidiErrorType::noError;
+                }
+                
+                template<typename _MidiEvent,typename _Fun>
+                MidiErrorType set_bb_unsorted(MidiEventMap<_MidiEvent>&_map){
+                    for(size_t trackIdx=0;trackIdx<_map.size();++trackIdx){
+                        uint8_t metaTrack=get_metaTrack(trackIdx);
+                        for(size_t eventIdx=0;eventIdx<_map[trackIdx].size();++eventIdx){
+                            _MidiEvent&event=_map[trackIdx][eventIdx];
+                            size_t bbIdx=_find_bbIdx_between(event.time,bbMap[metaTrack],0,bbMap[metaTrack].size());
+                            if(bbIdx==size_t(-1)){
+                                double deltaBeat=(event.time-bbMap[metaTrack][bbIdx].time)
+                                                *bbMap[metaTrack][bbIdx].denominator
+                                                /4.0/m_head.tpqn();
+                                double deltaBar=deltaBeat/bbMap[metaTrack][bbIdx].numerator;
+                                event.bar=bbMap[metaTrack][bbIdx].barNode+deltaBar;
+                                event.beat=bbMap[metaTrack][bbIdx].beatNode+deltaBeat;
+                            }
+                            else{
+                                return MidiErrorType::change_timeMode;
+                            }
+                        }
+                    }
+                    return MidiErrorType::noError;
+                }
                 size_t _find_tempoIdx_between(uint64_t _time,TempoList&_tempoList,size_t _left,size_t _right){
                     if(_left>=_right){
                         return size_t(-1);
