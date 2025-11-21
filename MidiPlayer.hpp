@@ -15,6 +15,28 @@ namespace GoldType{
             public:
                 MidiShortMessage(uint64_t time=0,uint32_t message=0):time(time),message(message){
                 }
+                MidiShortMessage(uint64_t _time,const MidiMessage&_message){
+                    time=_time;
+                    switch(_message.type()){
+                        case MidiEventType::note_off:
+                        case MidiEventType::note_on:
+                        case MidiEventType::key_afterTouch:
+                        case MidiEventType::controller:
+                        case MidiEventType::pitchWheel:
+                        {
+                            message=_message[0]|_message[1]<<8|_message[2]<<16;
+                            break;
+                        }
+                        case MidiEventType::program:
+                        case MidiEventType::channel_afterTouch:{
+                            message=_message[0]|_message[1]<<8;
+                            break;
+                        }
+                        default:{
+                            
+                        }
+                    }
+                }
         };
         bool operator==(const MidiShortMessage&a,const MidiShortMessage&b){
             return a.time==b.time&&a.message==b.message;
@@ -44,11 +66,45 @@ namespace GoldType{
             private:
             public:
                 using std::vector<MidiShortMessage>::vector;
+                MidiShortMessageList(const MidiFile&_file){
+                    if(_file.is_read_success()){
+                        for(size_t trackIdx=0;trackIdx<_file.head.ntracks;++trackIdx){
+                            const MidiTrack&track=_file[trackIdx];
+                            uint64_t time=0;
+                            for(size_t eventIdx=0;eventIdx<track.size();++eventIdx){
+                                const MidiEvent&event=track[eventIdx];
+                                time+=event.time;
+                                if(event.is_normal()){
+                                    emplace_back(time,event.message);
+                                }
+                            }
+                        }
+                        std::sort(this->begin(),this->end());
+                    }
+                }
+                MidiShortMessageList(const MidiParser&_parser){
+                    NoteMap noteMap=_parser.noteMap();
+                    if(_parser.timeMode()==MidiTimeMode::microsecond){
+                        *this=MidiShortMessageList(noteMap);
+                    }
+                    else{
+                        _parser.change_timeMode(noteMap,MidiTimeMode::microsecond);
+                        *this=MidiShortMessageList(noteMap);
+                    }
+                }
+                MidiShortMessageList(const std::string&_filename){
+                    MidiFile file(_filename);
+                    file.read();
+                    *this=MidiShortMessageList(file);
+                }
                 MidiShortMessageList(NoteList _noteList){
                     _noteList.sort();
                     this->reserve(_noteList.size()+_noteList.size()/10);
                     uint8_t instruments[16]={0};
                     for(const Note&note:_noteList){
+                        if(note.timeMode==MidiTimeMode::tick){
+                            continue;
+                        }
                         if(note.instrument!=instruments[note.channel]){
                             instruments[note.channel]=note.instrument;
                             emplace_back(note.time,(note.instrument<<8)|0xC0|note.channel);
@@ -60,10 +116,9 @@ namespace GoldType{
                             emplace_back(note.time,(note.pitch<<8)|0x80|note.channel);
                         }
                     }
-                }
-            public:
-                void sort(void){
                     std::sort(this->begin(),this->end());
+                }
+                MidiShortMessageList(const NoteMap&_map):MidiShortMessageList(event_map_to_list(_map)){
                 }
         };
         class MidiPlayer{
@@ -76,14 +131,19 @@ namespace GoldType{
                 MidiPlayer(void){
                     
                 }
+                MidiPlayer(const MidiShortMessageList&_messages):m_messages(_messages){
+                }
+                MidiPlayer(const std::string&_filename):m_messages(_filename){
+                }
                 MidiPlayer(const NoteList&_noteList):m_messages(_noteList){
-                    m_messages.sort();
+                }
+                MidiPlayer(const NoteMap&_noteMap):m_messages(_noteMap){
                 }
                 ~MidiPlayer(void){
                     
                 }
             public:
-                void play(void){
+                void play(void)const {
                     HMIDIOUT handle;
                     midiOutOpen(&handle,0,0,0,CALLBACK_NULL);
                     uint64_t lastTime=0;

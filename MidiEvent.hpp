@@ -6,30 +6,7 @@ namespace GoldType{
         /********************************
                     Midi Event
         ********************************/
-        enum class MidiEventType:uint8_t{
-            null=0x00,
-            /******************
-            Part1:type = 0xNx (N = 8~E ,x = 0~F)
-            type & 0xF0 = 0xN0
-            ******************/
-            note_off=0x80,
-            note_on=0x90,
-            key_afterTouch=0xA0,
-            controller=0xB0,
-            program=0xC0,
-            channel_afterTouch=0xD0,
-            pitchWheel=0xE0,
-            
-            /*******************
-            Part2:type = 0xF0 or 0xF7
-            *******************/
-            sysex_begin=0xF0,sysex_end=0xF7,
-            
-            /*******************
-            Part3:type = 0xFF
-            *******************/
-            meta=0xFF
-        };
+        
         
         enum class MidiTimeMode:bool{
             tick=0,
@@ -104,22 +81,10 @@ namespace GoldType{
                 ~MidiEvent(void){}
             public:
                 MidiEventType type(void)const {
-                    if(message[0]==0xFF||message[0]==0xF0||message[0]==0xF7){
-                        return MidiEventType(message[0]);
-                    }
-                    else{
-                        return MidiEventType(message[0]&0xF0);
-                    }
+                    return message.type();
                 }
                 uint8_t channel(void)const {
-                    #ifdef MIDI_DEBUG
-                    if(message[0]<0xF0&&message[0]>0x7F){
-                    #endif
-                        return message[0]&0x0F;
-                    #ifdef MIDI_DEBUG
-                    }
-                    return 0xFF;
-                    #endif
+                    return message.channel();
                 }
             public:
                 bool is_normal(void)const{

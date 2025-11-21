@@ -120,12 +120,14 @@ using namespace std;
 // }
 void fun7(){
     MidiPrinter pout("write_test_fun7.txt");
-    MidiParser a("3.mid");
+    std::string filename;
+    cin>>filename;
+    MidiParser a(filename);
     midiDebug<<a.change_timeMode();
-    pout<<a.noteMap;
-    // pout<<MidiPrintFormat::json<<MidiPrintJsonFormat(jsonFormat_file|jsonFormat_pretty)<<a;
-    // MidiPlayer player(c);
-    // player.play();
+    pout<<link_notePair(a.noteMap());
+    // pout<<MidiPrintFormat::json<<MidiPrintJsona.noteMap()Format(jsonFormat_file|jsonFormat_pretty)<<a;
+    MidiPlayer player(a);
+    player.play();
     
 }
 int main(){

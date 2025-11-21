@@ -301,19 +301,19 @@ namespace GoldType{
                     return track[idx];
                 }
             public:
-                bool is_untouched(void){
+                bool is_untouched(void)const {
                     return m_state==MidiFileState::untouched;
                 }
-                bool is_read_success(void){
+                bool is_read_success(void)const {
                     return m_state==MidiFileState::read_success;
                 }
-                bool is_read_error(void){
+                bool is_read_error(void)const {
                     return m_state==MidiFileState::read_error;
                 }
-                bool is_write_success(void){
+                bool is_write_success(void)const {
                     return m_state==MidiFileState::write_success;
                 }
-                bool is_write_error(void){
+                bool is_write_error(void)const {
                     return m_state==MidiFileState::write_error;
                 }
         };

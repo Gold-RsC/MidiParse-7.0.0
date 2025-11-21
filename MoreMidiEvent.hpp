@@ -274,7 +274,7 @@ namespace GoldType{
         bool operator>=(const Tempo&a,const Tempo&b){
             return !(a<b);
         }
-        
+
         class TimeSignature:public BasicMidiEvent_Meta{
             public:
                 uint8_t numerator;
@@ -496,6 +496,7 @@ namespace GoldType{
             }
             return ret;
         }
+        
         template<typename _MidiEvent>
         uint8_t get_ntracks(const MidiEventList<_MidiEvent>&_list){
             uint8_t _num=0;
