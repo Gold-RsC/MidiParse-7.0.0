@@ -29,5 +29,7 @@ int main(){
             notePair.time,notePair.duration,notePair.channel,notePair.pitch,notePair.instrument,notePair.velocity,notePair.bar,notePair.bar+notePair.bar_diff,notePair.beat,notePair.beat+notePair.beat_diff);
     }
     fclose(file);
+
+    system("pause");
     return 0;
 }

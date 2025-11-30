@@ -48,5 +48,7 @@ int main(){
     print_table(link_notePair(noteMap));
     print_json_minimal(bbMap);
     print_json_pretty(textMap);
+
+    system("pause");
     return 0;
 }

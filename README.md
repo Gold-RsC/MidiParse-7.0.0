@@ -6,13 +6,13 @@
 
 - 作者         : Csrua / Gold_RsC
 
-- 开发时间 : 2020/07/26 - 2025/12/01
+- 开发时间 : 2020/04/26 - 2025/12/01
 
 - github     : Gold-RsC(https://github.com/Gold-RsC)
 
 - bilibili      : Csrua(https://space.bilibili.com/361846321)
 
-- QQ           : 310106329
+- 邮箱         : 310106329@qq.com
 
 - 许可证     : MIT许可证
 
@@ -80,7 +80,7 @@ task.json应该按下面的内容设置
                 "${file}",//包含main函数的源文件
                 "-I${workspaceFolder}/include",
                 "-o",
-                "${workspaceFolder}/${relativeFileDirname}/${fileBasenameNoExtension}.exe",//可执行文件
+                "${workspaceFolder}/bin/${relativeFileDirname}/${fileBasenameNoExtension}.exe",//可执行文件
                 "-lwinmm"
             ],
             "options": {
@@ -114,10 +114,7 @@ task.json应该按下面的内容设置
 7.0.0/
 ├── include/
 |   ├── MidiError.hpp
-|   ├── MidiMessage.hpp
-|   ├── MidiEvent.hpp
-│   ├── MidiError.hpp
-│   ├── MidiMessage.hpp
+|   ├── BasicMidiEvent.hpp
 │   ├── MidiEvent.hpp
 │   ├── MidiHead.hpp
 │   ├── MidiTrack.hpp
@@ -132,10 +129,10 @@ task.json应该按下面的内容设置
 │   ├── MidiFile.hpp
 │   ├── MidiParser.hpp
 │   ├── MidiPrinter.hpp
-│   ├── MidiPlayer.hpp
+│   └── MidiPlayer.hpp
 ├── src/
 │   ├── MidiError.cpp
-│   ├── MidiMessage.cpp
+│   ├── BasicMidiEvent.cpp
 │   ├── MidiEvent.cpp
 │   ├── MidiHead.cpp
 │   ├── MidiTrack.cpp
@@ -149,8 +146,22 @@ task.json应该按下面的内容设置
 │   ├── MidiFile.cpp
 │   ├── MidiParser.cpp
 │   ├── MidiPrinter.cpp
-│   ├── MidiPlayer.cpp
+│   └── MidiPlayer.cpp
 ├── examples/
+│   ├── ...
+│   └── ...
+├── docs/
+│   ├── ...
+│   └── ...
+├── bin/
+│   ├── ...
+│   └── ...
+├── output/
+│   ├── ...
+│   └── ...
+├── midi/
+│   ├── ...
+│   └── ...
 └── README.md
 ```
 
@@ -274,14 +285,52 @@ classDiagram
     MoreMidiEvent --> MidiPrinter
 ```
 
-而类的继承关系可以通过上图有基本的了解，所以我就不赘述了
+而类的继承关系可以通过上图有基本的猜想，所以我就不赘述了
 
 ## 细节文档
 
-| 模块   | 相关头文件       | 相关细节文档                    |
-| ---- | ----------- | ------------------------- |
+| 模块   | 相关头文件       | 相关细节文档                                                |
+| ---- | ----------- | ----------------------------------------------------- |
 | 错误处理 | MidiError   | [debug.md](docs/debug.md) |
-| 文件读取 | MidiFile    |                           |
-| 信息解析 | MidiParser  | [parse.md](docs/parse.md) |
-| 音乐播放 | MidiPlayer  | [play.md](docs/play.md)   |
-| 信息打印 | MidiPrinter | [print.md](docs/print.md) |
+| 文件读取 | MidiFile    | [file.md](docs/file.md)                               |
+| 信息解析 | MidiParser  | [parse.md](docs/parse.md)                             |
+| 音乐播放 | MidiPlayer  | [play.md](docs/play.md)                               |
+| 信息打印 | MidiPrinter | [print.md](docs/print.md)                             |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

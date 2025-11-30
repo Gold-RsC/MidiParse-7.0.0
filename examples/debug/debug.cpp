@@ -8,6 +8,7 @@
 using namespace GoldType::MidiParse;
 int main(){
     MidiFile midifile("../../../midi/no_existing.mid");
+
     // 读取MIDI文件,返回值为读取时发生的错误，如文件名等错误
     MidiErrorType err=midifile.read();
 
@@ -24,6 +25,7 @@ int main(){
 
     // 打印错误信息
     midiError<<err;
-
+    
+    system("pause");
     return 0;
 }

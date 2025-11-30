@@ -10,10 +10,6 @@ Midi结构层如下：
 
 - BasicMidiEvent
   
-  - BasicMidiEvent_Non
-  
-  - BasicMidiEvent_Meta
-  
   - MidiEvent
 
 - MidiEventList<_MidiEvent>
@@ -27,5 +23,7 @@ Midi结构层如下：
 - MidiFile
 
 
+
+写不动了，以后再写吧~~~
 
 
