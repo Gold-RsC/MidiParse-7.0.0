@@ -243,8 +243,6 @@ MidiPlayer("sound.mid").start_normal();
 
 - `bool is_stopped(void)`是否播放结束
 
-需要注意的是，还有两个状态是跳跃态相关状态，当调用`void set_time(uint64_t time)`时，会短暂进入跳跃态。会影响上述状态的判断。
-
 ##### 设置/获取数据
 
 - `void set_time(uint64_t time)`

@@ -151,6 +151,7 @@ namespace GoldType{
                 uint64_t target_time;
                 double speed;
                 LARGE_INTEGER target_node;
+                uint32_t message;
                 {
                     std::unique_lock<std::mutex> lock(m_mutex);
                     if(m_state==State::playing){
@@ -200,36 +201,35 @@ namespace GoldType{
                         m_current_iterator=m_messages.end();
                         return;
                     }
-                    else if(m_state==State::beingjumping){
-                        midiOutReset(m_handle);
-                        m_state=State::jumping;
-                        m_condition.notify_one();
-                        m_condition.wait(lock,[this]{
-                            return m_state==State::playing;
-                        });
-                        if(m_state==State::stopped){
-                            m_current_iterator=m_messages.end();
-                            return;
-                        }
-                        
-                    }
                     if(m_current_iterator==m_messages.end()){
                         break;
                     }
                     speed=m_speed;
+                    if(m_is_jump){
+                        m_is_jump=false;
+                        midiOutReset(m_handle);
+                    }
+                    else{
+                    }
                     target_time=m_current_iterator->time;
                     target_node.QuadPart=m_current_node.QuadPart+(target_time-m_current_time)*freq.QuadPart/1000000llu/speed;
+                    message=m_current_iterator->message;
                 }
-                
+
                 wait_until(target_node,speed,freq);
                 {
                     std::unique_lock<std::mutex> lock(m_mutex);
-                    m_current_time=target_time;
-                    m_current_node=target_node;
-                    midiOutShortMsg(m_handle,m_current_iterator->message);
-                    ++m_current_iterator;
+                    midiOutShortMsg(m_handle,message);
+                    if(m_is_jump){
+                        m_is_jump=false;
+                        midiOutReset(m_handle);
+                    }
+                    else{
+                        m_current_time=target_time;
+                        m_current_node=target_node;
+                        ++m_current_iterator;
+                    }
                 }
-
             }
             {
                 std::unique_lock<std::mutex> lock(m_mutex);
@@ -251,88 +251,89 @@ namespace GoldType{
             }
             for(;;){
                 
-                std::unique_lock<std::mutex> lock(m_mutex);
                 uint64_t target_time;
                 double speed;
                 
                 LARGE_INTEGER target_node;
-            
-                if(m_state==State::playing){
-                    while(abs(m_speed)<0.01){
-                        lock.unlock();
-                        pause();
-                        lock.lock();
-                        midiOutReset(m_handle);
-                        LARGE_INTEGER pause_begin;
-                        QueryPerformanceCounter(&pause_begin);
-                        m_condition.wait(lock,[this]{
-                            return m_state!=State::paused;
-                        });
-                        if(m_state==State::stopped){
-                            m_current_iterator=m_messages.end();
-                            return;
-                        }
-                        LARGE_INTEGER pause_end;
-                        QueryPerformanceCounter(&pause_end);
-                        m_current_node.QuadPart+=pause_end.QuadPart-pause_begin.QuadPart;
-                    }
-                }
-                else if(m_state==State::paused){
-                    do{
-                        if(abs(m_speed)<0.01){
+                uint32_t message;
+                {
+                    std::unique_lock<std::mutex> lock(m_mutex);
+                    if(m_state==State::playing){
+                        while(abs(m_speed)<0.01){
                             lock.unlock();
                             pause();
                             lock.lock();
+                            midiOutReset(m_handle);
+                            LARGE_INTEGER pause_begin;
+                            QueryPerformanceCounter(&pause_begin);
+                            m_condition.wait(lock,[this]{
+                                return m_state!=State::paused;
+                            });
+                            if(m_state==State::stopped){
+                                m_current_iterator=m_messages.end();
+                                return;
+                            }
+                            LARGE_INTEGER pause_end;
+                            QueryPerformanceCounter(&pause_end);
+                            m_current_node.QuadPart+=pause_end.QuadPart-pause_begin.QuadPart;
                         }
-                        
-                        midiOutReset(m_handle);
-                        LARGE_INTEGER pause_begin;
-                        QueryPerformanceCounter(&pause_begin);
-                        m_condition.wait(lock,[this]{
-                            return m_state!=State::paused;
-                        });
-                        if(m_state==State::stopped){
-                            m_current_iterator=m_messages.end();
-                            return;
-                        }
-                        LARGE_INTEGER pause_end;
-                        QueryPerformanceCounter(&pause_end);
-                        m_current_node.QuadPart+=pause_end.QuadPart-pause_begin.QuadPart;
-                    }while(abs(m_speed)<0.01);
-                }
-                else if(m_state==State::stopped){
-                    m_current_iterator=m_messages.end();
-                    return;
-                }
-                else if(m_state==State::beingjumping){
-                    midiOutReset(m_handle);
-                    m_state=State::jumping;
-                    m_condition.notify_one();
-                    m_condition.wait(lock,[this]{
-                        return m_state==State::playing;
-                    });
-                    if(m_state==State::stopped){
+                    }
+                    else if(m_state==State::paused){
+                        do{
+                            if(abs(m_speed)<0.01){
+                                lock.unlock();
+                                pause();
+                                lock.lock();
+                            }
+                            
+                            midiOutReset(m_handle);
+                            LARGE_INTEGER pause_begin;
+                            QueryPerformanceCounter(&pause_begin);
+                            m_condition.wait(lock,[this]{
+                                return m_state!=State::paused;
+                            });
+                            if(m_state==State::stopped){
+                                m_current_iterator=m_messages.end();
+                                return;
+                            }
+                            LARGE_INTEGER pause_end;
+                            QueryPerformanceCounter(&pause_end);
+                            m_current_node.QuadPart+=pause_end.QuadPart-pause_begin.QuadPart;
+                        }while(abs(m_speed)<0.01);
+                    }
+                    else if(m_state==State::stopped){
                         m_current_iterator=m_messages.end();
                         return;
                     }
-                    
+                    if(m_current_iterator==m_messages.end()){
+                        m_current_iterator=m_messages.begin();
+                        m_current_time=m_current_iterator->time;
+                    }
+                    speed=m_speed;
+                    if(m_is_jump){
+                        m_is_jump=false;
+                    }
+                    else{
+                    }
+                    target_time=m_current_iterator->time;
+                    target_node.QuadPart=m_current_node.QuadPart+(target_time-m_current_time)*freq.QuadPart/1000000llu/speed;
+                    message=m_current_iterator->message;
                 }
-                if(m_current_iterator==m_messages.end()){
-                    m_current_iterator=m_messages.begin();
-                    m_current_time=m_current_iterator->time;
-                }
-                speed=m_speed;
-                target_time=m_current_iterator->time;
-                target_node.QuadPart=m_current_node.QuadPart+(target_time-m_current_time)*freq.QuadPart/1000000llu/speed;
 
                 wait_until(target_node,speed,freq);
-
-                m_current_time=target_time;
-                m_current_node=target_node;
-                midiOutShortMsg(m_handle,m_current_iterator->message);
-                ++m_current_iterator;
-            
-
+                {
+                    std::unique_lock<std::mutex> lock(m_mutex);
+                    midiOutShortMsg(m_handle,message);
+                    if(m_is_jump){
+                        m_is_jump=false;
+                    }
+                    else{
+                        m_current_time=target_time;
+                        m_current_node=target_node;
+                        ++m_current_iterator;
+                    }
+                }
+                
             }
             {
                 std::unique_lock<std::mutex> lock(m_mutex);
@@ -342,6 +343,7 @@ namespace GoldType{
     
         MidiPlayer::MidiPlayer(void):
             m_state(State::beingstarting),
+            m_is_jump(false),
             m_speed(1.0),
             m_handle(nullptr),
             m_current_time(0),
@@ -351,6 +353,7 @@ namespace GoldType{
         MidiPlayer::MidiPlayer(const MidiPlayer&other):
             m_messages(other.m_messages),
             m_state(other.m_state),
+            m_is_jump(false),
             m_speed(other.m_speed),
             m_handle(nullptr),
             m_current_time(other.m_current_time),
@@ -358,6 +361,7 @@ namespace GoldType{
         MidiPlayer::MidiPlayer(MidiPlayer&&other):
             m_messages(std::move(other.m_messages)),
             m_state(State::beingstarting),
+            m_is_jump(false),
             m_speed(other.m_speed),
             m_handle(nullptr),
             m_current_time(other.m_current_time),
@@ -423,79 +427,23 @@ namespace GoldType{
         }
         void MidiPlayer::set_time(uint64_t time){
             std::unique_lock<std::mutex> lock(m_mutex);
-            if(m_state==State::jumping||m_state==State::beingjumping){
+            m_is_jump=true;
+            if(is_empty()){
                 return;
             }
-            if(m_messages.empty()){
-                return;
+            m_current_iterator=std::lower_bound(
+                m_messages.begin(),m_messages.end(),time,
+                [](const MidiShortMessage&_m,uint64_t _t){
+                    return _m.time<_t;
+                }
+            );
+            if(m_current_iterator==m_messages.end()){
+                m_current_iterator=m_messages.end()-1;
             }
-            if(m_current_iterator->time==time){
-                return;
-            }
-
+            m_current_time=m_current_iterator->time;
             if(m_state==State::playing){
-                m_state=State::beingjumping;
-                m_condition.wait(lock,[this]{
-                    return m_state==State::jumping;
-                });
-                if(time>m_messages.back().time){
-                    m_current_iterator=m_messages.end()-1;
-                }
-                else{
-                    if(m_current_iterator->time<time){
-                        for(;m_current_iterator!=m_messages.end();++m_current_iterator){
-                            if(m_current_iterator->time>time){
-                                break;
-                            }
-                        }
-                        --m_current_iterator;
-                    }
-                    else if(m_current_iterator->time>time){
-                        for(;m_current_iterator!=m_messages.begin();--m_current_iterator){
-                            if(m_current_iterator->time<=time){
-                                break;
-                            }
-                        };
-                    }
-                }
-                m_current_time=m_current_iterator->time;
-                ++m_current_iterator;
                 QueryPerformanceCounter(&m_current_node);
-                m_state=State::playing;
-                m_condition.notify_one();
             }
-            else if(m_state==State::paused){
-                if(time>m_messages.back().time){
-                    m_current_iterator=m_messages.end()-1;
-                }
-                else{
-                    if(m_current_iterator->time<time){
-                        for(;m_current_iterator!=m_messages.end();++m_current_iterator){
-                            if(m_current_iterator->time>time){
-                                break;
-                            }
-                        }
-                        --m_current_iterator;
-                    }
-                    else if(m_current_iterator->time>time){
-                        for(;m_current_iterator!=m_messages.begin();--m_current_iterator){
-                            if(m_current_iterator->time<=time){
-                                break;
-                            }
-                        };
-                    }
-                }
-                m_current_time=m_current_iterator->time;
-                ++m_current_iterator;
-            }
-            else if(m_state==State::stopped){
-                lock.unlock();
-                play();
-                pause();
-                set_time(time);
-            }
-            
-            
         }
         void MidiPlayer::join(void){
             if(m_thread.joinable()){

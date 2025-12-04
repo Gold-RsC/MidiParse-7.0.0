@@ -49,13 +49,11 @@ namespace GoldType{
         };
         class MidiPlayer{
             private:
-                enum class State{
-                    beingstarting,
-                    stopped,
-                    playing,
-                    paused,
-                    beingjumping,
-                    jumping
+                enum class State:uint8_t{
+                    beingstarting=0,
+                    stopped=1,
+                    playing=2,
+                    paused=3
                 };
                 HMIDIOUT m_handle;
                 MidiShortMessageList m_messages;
@@ -63,6 +61,7 @@ namespace GoldType{
                 std::thread m_thread;
             
                 State m_state;
+                bool m_is_jump;
                 std::mutex m_mutex;
                 std::condition_variable m_condition;
                 double m_speed;
@@ -73,7 +72,6 @@ namespace GoldType{
 
                 MidiShortMessageList::iterator m_current_iterator;
             private:
-                
                 void wait_until(LARGE_INTEGER target_node,double speed,LARGE_INTEGER freq);
                 void normal_task(void);
                 void loop_task(void);
@@ -83,6 +81,7 @@ namespace GoldType{
                 MidiPlayer(_Object&&_object):
                     m_messages(std::forward<_Object>(_object)),
                     m_state(State::beingstarting),
+                    m_is_jump(false),
                     m_speed(1.0),
                     m_handle(nullptr),
                     m_current_time(0),
