@@ -105,6 +105,10 @@ namespace GoldType{
         }
         MidiShortMessageList::MidiShortMessageList(const NoteMap&_map):MidiShortMessageList(event_map_to_list(_map)){
         }
+        MidiShortMessageList::MidiShortMessageList(const NotePairList&_notePairList):MidiShortMessageList(devide_notePair(_notePairList)){
+        }
+        MidiShortMessageList::MidiShortMessageList(const NotePairMap&_notePairMap):MidiShortMessageList(devide_notePair(_notePairMap)){
+        }
     
         MidiTimeMode MidiShortMessageList::get_timeMode(void)const {
             return MidiTimeMode::microsecond;
@@ -246,90 +250,88 @@ namespace GoldType{
                 freq=m_freq;
             }
             for(;;){
+                
+                std::unique_lock<std::mutex> lock(m_mutex);
                 uint64_t target_time;
                 double speed;
                 
                 LARGE_INTEGER target_node;
-                {
-                    std::unique_lock<std::mutex> lock(m_mutex);
-                    
-                    if(m_state==State::playing){
-                        while(abs(m_speed)<0.01){
-                            lock.unlock();
-                            pause();
-                            lock.lock();
-                            midiOutReset(m_handle);
-                            LARGE_INTEGER pause_begin;
-                            QueryPerformanceCounter(&pause_begin);
-                            m_condition.wait(lock,[this]{
-                                return m_state!=State::paused;
-                            });
-                            if(m_state==State::stopped){
-                                m_current_iterator=m_messages.end();
-                                return;
-                            }
-                            LARGE_INTEGER pause_end;
-                            QueryPerformanceCounter(&pause_end);
-                            m_current_node.QuadPart+=pause_end.QuadPart-pause_begin.QuadPart;
-                        }
-                    }
-                    else if(m_state==State::paused){
-                        do{
-                            if(abs(m_speed)<0.01){
-                                lock.unlock();
-                                pause();
-                                lock.lock();
-                            }
-                            
-                            midiOutReset(m_handle);
-                            LARGE_INTEGER pause_begin;
-                            QueryPerformanceCounter(&pause_begin);
-                            m_condition.wait(lock,[this]{
-                                return m_state!=State::paused;
-                            });
-                            if(m_state==State::stopped){
-                                m_current_iterator=m_messages.end();
-                                return;
-                            }
-                            LARGE_INTEGER pause_end;
-                            QueryPerformanceCounter(&pause_end);
-                            m_current_node.QuadPart+=pause_end.QuadPart-pause_begin.QuadPart;
-                        }while(abs(m_speed)<0.01);
-                    }
-                    else if(m_state==State::stopped){
-                        m_current_iterator=m_messages.end();
-                        return;
-                    }
-                    else if(m_state==State::beingjumping){
+            
+                if(m_state==State::playing){
+                    while(abs(m_speed)<0.01){
+                        lock.unlock();
+                        pause();
+                        lock.lock();
                         midiOutReset(m_handle);
-                        m_state=State::jumping;
-                        m_condition.notify_one();
+                        LARGE_INTEGER pause_begin;
+                        QueryPerformanceCounter(&pause_begin);
                         m_condition.wait(lock,[this]{
-                            return m_state==State::playing;
+                            return m_state!=State::paused;
                         });
                         if(m_state==State::stopped){
                             m_current_iterator=m_messages.end();
                             return;
                         }
+                        LARGE_INTEGER pause_end;
+                        QueryPerformanceCounter(&pause_end);
+                        m_current_node.QuadPart+=pause_end.QuadPart-pause_begin.QuadPart;
+                    }
+                }
+                else if(m_state==State::paused){
+                    do{
+                        if(abs(m_speed)<0.01){
+                            lock.unlock();
+                            pause();
+                            lock.lock();
+                        }
                         
-                    }
-                    if(m_current_iterator==m_messages.end()){
-                        m_current_iterator=m_messages.begin();
-                        m_current_time=m_current_iterator->time;
-                    }
-                    speed=m_speed;
-                    target_time=m_current_iterator->time;
-                    target_node.QuadPart=m_current_node.QuadPart+(target_time-m_current_time)*freq.QuadPart/1000000llu/speed;
+                        midiOutReset(m_handle);
+                        LARGE_INTEGER pause_begin;
+                        QueryPerformanceCounter(&pause_begin);
+                        m_condition.wait(lock,[this]{
+                            return m_state!=State::paused;
+                        });
+                        if(m_state==State::stopped){
+                            m_current_iterator=m_messages.end();
+                            return;
+                        }
+                        LARGE_INTEGER pause_end;
+                        QueryPerformanceCounter(&pause_end);
+                        m_current_node.QuadPart+=pause_end.QuadPart-pause_begin.QuadPart;
+                    }while(abs(m_speed)<0.01);
                 }
-                
+                else if(m_state==State::stopped){
+                    m_current_iterator=m_messages.end();
+                    return;
+                }
+                else if(m_state==State::beingjumping){
+                    midiOutReset(m_handle);
+                    m_state=State::jumping;
+                    m_condition.notify_one();
+                    m_condition.wait(lock,[this]{
+                        return m_state==State::playing;
+                    });
+                    if(m_state==State::stopped){
+                        m_current_iterator=m_messages.end();
+                        return;
+                    }
+                    
+                }
+                if(m_current_iterator==m_messages.end()){
+                    m_current_iterator=m_messages.begin();
+                    m_current_time=m_current_iterator->time;
+                }
+                speed=m_speed;
+                target_time=m_current_iterator->time;
+                target_node.QuadPart=m_current_node.QuadPart+(target_time-m_current_time)*freq.QuadPart/1000000llu/speed;
+
                 wait_until(target_node,speed,freq);
-                {
-                    std::unique_lock<std::mutex> lock(m_mutex);
-                    m_current_time=target_time;
-                    m_current_node=target_node;
-                    midiOutShortMsg(m_handle,m_current_iterator->message);
-                    ++m_current_iterator;
-                }
+
+                m_current_time=target_time;
+                m_current_node=target_node;
+                midiOutShortMsg(m_handle,m_current_iterator->message);
+                ++m_current_iterator;
+            
 
             }
             {
@@ -361,11 +363,15 @@ namespace GoldType{
             m_current_time(other.m_current_time),
             m_current_iterator((other.m_current_iterator-other.m_messages.begin())+m_messages.begin()){}
         MidiPlayer::~MidiPlayer(void){
+            join();
             if(m_handle!=nullptr){
                 midiOutReset(m_handle);
                 midiOutClose(m_handle);
                 m_handle=nullptr;
             }
+        }
+        bool MidiPlayer::is_empty(void){
+            return m_messages.empty();
         }
     
         void MidiPlayer::start_normal(void){
@@ -436,9 +442,6 @@ namespace GoldType{
                     m_current_iterator=m_messages.end()-1;
                 }
                 else{
-                    if(m_current_iterator==m_messages.end()){
-                        m_current_iterator=m_messages.begin();
-                    }
                     if(m_current_iterator->time<time){
                         for(;m_current_iterator!=m_messages.end();++m_current_iterator){
                             if(m_current_iterator->time>time){
@@ -462,9 +465,6 @@ namespace GoldType{
                 m_condition.notify_one();
             }
             else if(m_state==State::paused){
-                if(m_current_iterator==m_messages.end()){
-                    m_current_iterator=m_messages.begin();
-                }
                 if(time>m_messages.back().time){
                     m_current_iterator=m_messages.end()-1;
                 }
@@ -504,7 +504,7 @@ namespace GoldType{
         }
         bool MidiPlayer::is_started(void){
             std::lock_guard<std::mutex> lock(m_mutex);
-            return m_state==State::beingstarting;
+            return m_state!=State::beingstarting;
         }
         bool MidiPlayer::is_playing(void){
             std::lock_guard<std::mutex> lock(m_mutex);
@@ -541,7 +541,7 @@ namespace GoldType{
         }
 
         MidiPlayer& MidiPlayer::operator=(const MidiPlayer&other){
-            if(!m_messages.size()){
+            if(m_state==State::beingstarting){
                 size_t idx=other.m_current_iterator-other.m_messages.begin();
                 m_messages=other.m_messages;
                 m_current_iterator=idx+m_messages.begin();
@@ -555,7 +555,7 @@ namespace GoldType{
             return *this;
         }
         MidiPlayer& MidiPlayer::operator=(MidiPlayer&&other){
-            if(!m_messages.size()){
+            if(m_state==State::beingstarting){
                 size_t idx=other.m_current_iterator-other.m_messages.begin();
                 m_messages=std::move(other.m_messages);
                 m_current_iterator=idx+m_messages.begin();

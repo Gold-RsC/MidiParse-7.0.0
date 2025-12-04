@@ -115,8 +115,8 @@ task.json应该按下面的内容设置
 ```
 7.0.0/
 ├── include/
-|   ├── MidiError.hpp
-|   ├── BasicMidiEvent.hpp
+│   ├── MidiError.hpp
+│   ├── BasicMidiEvent.hpp
 │   ├── MidiEvent.hpp
 │   ├── MidiHead.hpp
 │   ├── MidiTrack.hpp
@@ -127,7 +127,7 @@ task.json应该按下面的内容设置
 │   ├── Tempo.hpp
 │   ├── Text.hpp
 │   ├── TimeSignature.hpp
-|   ├── MoreMidiEvent.hpp
+│   ├── MoreMidiEvent.hpp
 │   ├── MidiFile.hpp
 │   ├── MidiParser.hpp
 │   ├── MidiPrinter.hpp
@@ -291,46 +291,13 @@ classDiagram
 
 ## 细节文档
 
-| 模块   | 相关头文件       | 相关细节文档                    |
-| ---- | ----------- | ------------------------- |
-| 错误处理 | MidiError   | [debug.md](docs/debug.md) |
-| 文件读取 | MidiFile    | [file.md](docs/file.md)   |
-| 信息解析 | MidiParser  | [parse.md](docs/parse.md) |
-| 音乐播放 | MidiPlayer  | [play.md](docs/play.md)   |
-| 信息打印 | MidiPrinter | [print.md](docs/print.md) |
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+| 模块        | 相关头文件         | 相关细节文档                              |
+| --------- | ------------- | ----------------------------------- |
+| 错误处理      | MidiError     | [debug.md](docs/debug.md)           |
+| 文件读取      | MidiFile      | [file.md](docs/file.md)             |
+| 信息解析      | MidiParser    | [parse.md](docs/parse.md)           |
+| 具体的Midi事件 | MoreMidiEvent | [more_event.md](docs/more_event.md) |
+| 音乐播放      | MidiPlayer    | [play.md](docs/play.md)             |
+| 信息打印      | MidiPrinter   | [print.md](docs/print.md)           |
 
 

@@ -42,6 +42,8 @@ namespace GoldType{
                 MidiShortMessageList(const std::string&_filename);
                 MidiShortMessageList(NoteList _noteList);
                 MidiShortMessageList(const NoteMap&_map);
+                MidiShortMessageList(const NotePairList&_notePairList);
+                MidiShortMessageList(const NotePairMap&_notePairMap);
             public:
                 MidiTimeMode get_timeMode(void)const;
         };
@@ -93,6 +95,8 @@ namespace GoldType{
                 MidiPlayer(MidiPlayer&&);
                 ~MidiPlayer(void);
             public:
+                bool is_empty(void);
+
                 void start_normal(void);
                 void start_loop(void);
 
