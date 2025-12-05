@@ -100,7 +100,10 @@ namespace GoldType{
                                             MidiTimeMode::tick,
                                             trackIdx,
                                             mispqn,
-                                            m_tempoMap[metaTrack][m_tempoMap[metaTrack].size()-1].timeNode+event.time*m_tempoMap[metaTrack][m_tempoMap[metaTrack].size()-1].mispqn/m_head.tpqn()
+                                            m_tempoMap[metaTrack].back().timeNode
+                                                +(time-m_tempoMap[metaTrack].back().time)
+                                                    *m_tempoMap[metaTrack].back().mispqn
+                                                    /m_head.tpqn()
                                         );
                                     }
                                     else{
@@ -109,7 +112,7 @@ namespace GoldType{
                                             MidiTimeMode::tick,
                                             trackIdx,
                                             mispqn,
-                                            event.time*0x07A120u/m_head.tpqn()
+                                            time*0x07A120u/m_head.tpqn()
                                         );
                                     }
                                     break;
@@ -197,7 +200,7 @@ namespace GoldType{
         }
         MidiParser::MidiParser(MidiParser&&_midiParser):m_head(std::move(_midiParser.m_head)),m_timeMode(_midiParser.m_timeMode),m_tempoMap(std::move(_midiParser.m_tempoMap)),m_bbMap(std::move(_midiParser.m_bbMap)),m_noteMap(std::move(_midiParser.m_noteMap)),m_textMap(std::move(_midiParser.m_textMap))
         {}
-        MidiParser::MidiParser(const MidiFile&_midi,MidiTimeMode _timeMode):m_timeMode(_timeMode){
+        MidiParser::MidiParser(const MidiFile&_midi,MidiTimeMode _timeMode):m_timeMode(MidiTimeMode::tick){
             if(_midi.is_read_success()){
                 m_head=_midi.head;
                 if(m_head.format==0x00||m_head.format==0x01){
@@ -222,7 +225,7 @@ namespace GoldType{
 
             }
         }
-        MidiParser::MidiParser(MidiFile&&_midi,MidiTimeMode _timeMode):m_timeMode(_timeMode){
+        MidiParser::MidiParser(MidiFile&&_midi,MidiTimeMode _timeMode):m_timeMode(MidiTimeMode::tick){
             if(_midi.is_untouched()){
                 _midi.read();
             }
@@ -251,7 +254,7 @@ namespace GoldType{
             }
         }
         MidiParser::MidiParser(std::string _filename,MidiTimeMode _timeMode):
-            m_timeMode(_timeMode){
+            m_timeMode(MidiTimeMode::tick){
             MidiFile _midi(_filename);
             _midi.read();
             *this=MidiParser(_midi,_timeMode);
@@ -262,6 +265,7 @@ namespace GoldType{
                 return MidiErrorType::no_error;
             }
             MidiErrorType err=MidiErrorType::no_error;
+            bool flag=false;
             if(m_timeMode==MidiTimeMode::tick&&_mode==MidiTimeMode::microsecond){
                 err=change_timeMode_tick2micro_sorted(m_noteMap);
                 if(err!=MidiErrorType::no_error){
@@ -275,6 +279,7 @@ namespace GoldType{
                 if(err!=MidiErrorType::no_error){
                     return err;
                 }
+                flag=true;
             }
             else if(m_timeMode==MidiTimeMode::microsecond&&_mode==MidiTimeMode::tick){
                 err=change_timeMode_micro2tick_sorted(m_noteMap);
@@ -289,11 +294,14 @@ namespace GoldType{
                 if(err!=MidiErrorType::no_error){
                     return err;
                 }
+                flag=true;
             }
-            for(uint8_t trackIdx=0;trackIdx<m_tempoMap.size();++trackIdx){
-                for(size_t eventIdx=0;eventIdx<m_tempoMap[trackIdx].size();++eventIdx){
-                    m_tempoMap[trackIdx][eventIdx].timeMode=_mode;
-                    std::swap(m_tempoMap[trackIdx][eventIdx].time,m_tempoMap[trackIdx][eventIdx].timeNode);
+            if(flag){
+                for(uint8_t trackIdx=0;trackIdx<m_tempoMap.size();++trackIdx){
+                    for(size_t eventIdx=0;eventIdx<m_tempoMap[trackIdx].size();++eventIdx){
+                        m_tempoMap[trackIdx][eventIdx].timeMode=_mode;
+                        std::swap(m_tempoMap[trackIdx][eventIdx].time,m_tempoMap[trackIdx][eventIdx].timeNode);
+                    }
                 }
             }
             m_timeMode=_mode;

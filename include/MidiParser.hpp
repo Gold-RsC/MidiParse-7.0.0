@@ -18,10 +18,16 @@ namespace GoldType{
             uint64_t operator()(const Tempo&tempo)const{
                 return tempo.time;
             }
+            uint64_t operator|(const Tempo&tempo)const{
+                return tempo.timeNode;
+            }
         };
         struct __get_tempo_timeNode_fun{
             uint64_t operator()(const Tempo&tempo)const{
                 return tempo.timeNode;
+            }
+            uint64_t operator|(const Tempo&tempo)const{
+                return tempo.time;
             }
         };
         template<typename _MidiEvent>
@@ -29,10 +35,11 @@ namespace GoldType{
             uint16_t _tpqn;
             __tick2micro_fun(uint16_t _tpqn):
                 _tpqn(_tpqn) {}
-            void operator()(_MidiEvent&_event,const Tempo&_tempo)const{
+            template<typename _GetTime>
+            void operator()(_MidiEvent&_event,const Tempo&_tempo,_GetTime&&_getTime)const{
                 _event.timeMode=MidiTimeMode::microsecond;
-                _event.time=_tempo.timeNode
-                        +(_event.time-_tempo.time)
+                _event.time=(_getTime|_tempo)
+                        +(_event.time-_getTime(_tempo))
                         *_tempo.mispqn/_tpqn;
             }
         };
@@ -41,10 +48,11 @@ namespace GoldType{
             uint16_t _tpqn;
             __micro2tick_fun(uint16_t _tpqn):
                 _tpqn(_tpqn) {}
-            void operator()(_MidiEvent&_event,const Tempo&_tempo)const{
+            template<typename _GetTime>
+            void operator()(_MidiEvent&_event,const Tempo&_tempo,_GetTime&&_getTime)const{
                 _event.timeMode=MidiTimeMode::tick;
-                _event.time=_tempo.timeNode
-                        +(_event.time-_tempo.time)
+                _event.time=(_getTime|_tempo)
+                        +(_event.time-_getTime(_tempo))
                         *_tpqn/_tempo.mispqn;
             }
         };
@@ -190,7 +198,7 @@ namespace GoldType{
                             if(_getTime(m_tempoMap[metaTrack][tempoIdx])>event.time){
                                 return MidiErrorType::change_timeMode;
                             }
-                            _fun(event,m_tempoMap[metaTrack][tempoIdx]);
+                            _fun(event,m_tempoMap[metaTrack][tempoIdx],_getTime);
                         }
                     }
                     return MidiErrorType::no_error;
@@ -204,7 +212,7 @@ namespace GoldType{
                             _MidiEvent&event=_map[trackIdx][eventIdx];
                             size_t tempoIdx=_find_tempoIdx_between(event.time,m_tempoMap[metaTrack],0,m_tempoMap[metaTrack].size(),_getTime);
                             if(tempoIdx==size_t(-1)){
-                                _fun(event,m_tempoMap[metaTrack][tempoIdx]);
+                                _fun(event,m_tempoMap[metaTrack][tempoIdx],_getTime);
                             }
                             else{
                                 return MidiErrorType::change_timeMode;
